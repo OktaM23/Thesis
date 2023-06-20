@@ -1,0 +1,390 @@
+---
+title: "Thesis Nur Okta Milatina TISE 2023"
+format: html
+editor: visual
+---
+
+# Packages
+
+```{r}
+install.packages('dplyr')
+install.packages('ggplot2')
+install.packages('plm')
+install.packages('lmtest')
+install.packages('readxl')
+install.packages('openxlsx')
+install.packages('tseries')
+install.packages('lfe')
+install.packages('vars')
+install.packages('psych')
+install.packages('gridExtra')
+install.packages('car')
+install.packages('broom')
+install.packages('stargazer')
+install.packages('olsrr')
+
+```
+
+# Dataset
+
+```{r}
+library(readxl)
+dataset<-read_xlsx('19_05_2.xlsx',sheet=1)
+label<-read_xlsx('19_05_2.xlsx',sheet=2)
+def<-read_xlsx('19_05_2.xlsx',sheet=3)
+```
+
+```{r}
+head(dataset)
+tail(dataset)
+```
+
+```{r}
+library(psych)
+data_vars <- dataset[,c(4:19)]
+
+# create summary statistics for each variable
+SS <- describe(data_vars)
+#reference for kurtosis and skewness 
+#https://www.sciencedirect.com/topics/neuroscience/kurtosis
+
+# print summary statistics
+print(SS)
+
+# count missing data
+
+write.csv(SS, file = "Data_statistics.csv")
+```
+
+```{r}
+#Overall pattern of CO2
+library(ggplot2)
+library(dplyr)
+# Define a vector of colors for the countries
+country_colors <- rainbow(38)
+
+# Define a vector of shapes for the countries
+num_shapes <- 5
+num_colors <- length(country_colors)
+country_shapes <- rep(0:(num_shapes-1), length.out=num_colors)
+
+
+plot<-ggplot(data = dataset %>% filter(Year>=1990& Year<=2019), aes(x =Year, y = ln_CO2)) +
+  geom_point(aes(color = factor(Country), shape = factor(Country)))+
+  geom_line(aes(colour = as.factor(Country))) +
+  geom_smooth(method = "lm", se = F, lty = "dashed") +
+  scale_color_manual(values = country_colors) +
+  scale_shape_manual(values = country_shapes) +
+  labs(x = "Year",  y = "log CO2 emission (metric ton per capita)",color = "Country",
+       shape = "Country") +
+  theme_classic() 
+
+
+plot + scale_x_continuous(limits = c(1990, 2019),breaks = seq(1990,2019, by = 5))
+
+ggsave("log_CO2.png", plot = plot, width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+#correlation
+# assume you have a correlation matrix called 'cor2'
+cor <- round(cor(dataset[, c(4:19)], use = "pairwise.complete.obs"),3)
+
+# write the correlation matrix to a CSV file
+write.csv(cor, file = "correlation_matrix.csv")
+
+#from the result it seems like Urban Population does not have strong correlation with the Co2 emission
+
+print(cor)
+```
+
+# First test of multicollinearity
+
+This section is part of assumption test to find the right variables for the model
+
+```{r}
+library("olsrr")
+fe_time_lm <- lm(ln_CO2 ~ ln_IU+ln_MIS+ln_OP+ln_GDP+ln_TR+ln_FDI+ln_LS+ln_LE+ln_ME+ factor(Country) + factor(Year), data=dataset)
+ols_vif_tol(fe_time_lm)
+ols_eigen_cindex(fe_time_lm)
+summary(fe_time_lm)
+```
+
+```{r}
+cor_2 <- round(cor(dataset[, c(4:28)], use = "pairwise.complete.obs"),3)
+print(cor_2)
+```
+
+# Selecting variables
+
+```{r}
+#FDI
+te1<- lm(ln_CO2 ~ ln_IU+ln_FDI+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te2<- lm(ln_CO2 ~ ln_IU+ln_FDI+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te3<- lm(ln_CO2 ~ ln_IU+ln_FDI+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te4<- lm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te5<- lm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te6<- lm(ln_CO2 ~ ln_MIS+ln_FDI+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te7<- lm(ln_CO2 ~ ln_OP+ln_FDI+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te8<- lm(ln_CO2 ~ ln_OP+ln_FDI+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te9<- lm(ln_CO2 ~ ln_OP+ln_FDI+ln_ME+ factor(Country) + factor(Year), data=dataset)
+ols_vif_tol(te_1)
+ols_vif_tol(te_2)
+ols_vif_tol(te_3)
+ols_vif_tol(te_4)
+ols_vif_tol(te_5)
+ols_vif_tol(te_6)
+ols_vif_tol(te_7)
+ols_vif_tol(te_8)
+ols_vif_tol(te_9)
+```
+
+```{r}
+#GDP
+te_1<- lm(ln_CO2 ~ ln_OP+ln_GDP+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_2<- lm(ln_CO2 ~ ln_OP+ln_GDP+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_3<- lm(ln_CO2 ~ ln_OP+ln_GDP+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te_4<- lm(ln_CO2 ~ ln_IU+ln_GDP+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_5<- lm(ln_CO2 ~ ln_IU+ln_GDP+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_6<- lm(ln_CO2 ~ ln_IU+ln_GDP+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te_7<- lm(ln_CO2 ~ ln_MIS+ln_GDP+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_8<- lm(ln_CO2 ~ ln_MIS+ln_GDP+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_9<- lm(ln_CO2 ~ ln_MIS+ln_GDP+ln_ME+ factor(Country) + factor(Year), data=dataset)
+ols_vif_tol(te_1)
+ols_vif_tol(te_2)
+ols_vif_tol(te_3)
+ols_vif_tol(te_4)
+ols_vif_tol(te_5)
+ols_vif_tol(te_6)
+ols_vif_tol(te_7)
+ols_vif_tol(te_8)
+ols_vif_tol(te_9)
+
+```
+
+```{r}
+#Trade openness
+te_1<- lm(ln_CO2 ~ ln_OP+ln_TR+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_2<- lm(ln_CO2 ~ ln_OP+ln_TR+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_3<- lm(ln_CO2 ~ ln_OP+ln_TR+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te_4<- lm(ln_CO2 ~ ln_IU+ln_TR+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_5<- lm(ln_CO2 ~ ln_IU+ln_TR+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_6<- lm(ln_CO2 ~ ln_IU+ln_TR+ln_ME+ factor(Country) + factor(Year), data=dataset)
+te_7<- lm(ln_CO2 ~ ln_MIS+ln_TR+ln_LE+ factor(Country) + factor(Year), data=dataset)
+te_8<- lm(ln_CO2 ~ ln_MIS+ln_TR+ln_LS+ factor(Country) + factor(Year), data=dataset)
+te_9<- lm(ln_CO2 ~ ln_MIS+ln_TR+ln_ME+ factor(Country) + factor(Year), data=dataset)
+ols_vif_tol(te_1)
+ols_vif_tol(te_2)
+ols_vif_tol(te_3)
+ols_vif_tol(te_4)
+ols_vif_tol(te_5)
+ols_vif_tol(te_6)
+ols_vif_tol(te_7)
+ols_vif_tol(te_8)
+ols_vif_tol(te_9)
+
+```
+
+# Panel data analysis
+
+## Pooled OLS
+
+```{r}
+#OLS via PLM
+library(plm)
+ols_a <- plm(ln_CO2 ~ ln_IU+ln_FDI + ln_LS,data = dataset4, 
+                      index = c("Country", "Year"), 
+                      effect = "individual", model = "pooling")
+summary(ols_a)
+
+```
+
+```{r}
+library(plm)
+ols_b <- plm(ln_CO2 ~ ln_MIS+ln_FDI + ln_LS,data = dataset4, 
+                      index = c("Country", "Year"), 
+                      effect = "individual", model = "pooling")
+summary(ols_b)
+
+```
+
+## Fixed Effects
+
+```{r}
+fixed_a <- plm(ln_CO2 ~ ln_IU+ln_FDI+ln_LS, data=dataset4, model="within")
+summary(fixed_a)
+fixed_b <- plm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LS, data=dataset4, model="within")
+summary(fixed_b)
+```
+
+```{r}
+fixed_a1 <- plm(ln_CO2 ~ ln_IU+ln_FDI, data=dataset4, model="within")
+
+var_decoupling <- var(fixed_a1$residuals)
+
+# Print the variance
+print(var_decoupling)
+```
+
+### Time-fixed effects
+
+```{r}
+fe_time_a <- plm(ln_CO2 ~ ln_IU+ln_FDI+ln_LS, data = dataset4, 
+                   index = c("Country", "Year"), effect = "twoways",
+                   model = "within")
+
+fe_time_b<- plm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LS, data = dataset4, 
+                   index = c("Country", "Year"), effect = "twoways",
+                   model = "within")
+summary(fe_time_a)
+summary(fe_time_b)
+```
+
+### Test TFE and FE
+
+```{r}
+#Within model
+pFtest(fe_time_a, fixed_a) 
+
+```
+
+```{r}
+#Within model
+pFtest(fe_time_b, fixed_b) 
+
+```
+
+### Test FE and OLS
+
+```{r}
+pFtest(fixed_a, ols_a)
+```
+
+```{r}
+pFtest(fixed_b, ols_b)
+```
+
+## Random Effects
+
+```{r}
+random_a <- plm(ln_CO2 ~ ln_IU+ln_FDI+ln_LS, data=dataset4, model="random")
+summary(random_a)
+random_b <- plm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LS, data=dataset4, model="random")
+summary(random_b)
+```
+
+```{r}
+fe_time_lm_a <- lm(ln_CO2 ~ ln_IU+ln_FDI+ln_LS+ factor(Country) + factor(Year), data=dataset4)
+
+summary(fe_time_lm_a)
+fe_time_lm_b <- lm(ln_CO2 ~ ln_MIS+ln_FDI+ln_LS+ factor(Country) + factor(Year), data=dataset4)
+summary(fe_time_lm_b)
+```
+
+### Test RE and OLS
+
+```{r}
+plmtest(ols_a, effect = "individual", type = c("bp"))
+```
+
+```{r}
+plmtest(ols_b, effect = "individual", type = c("bp"))
+```
+
+### Test FE and RE
+
+```{r}
+phtest(fixed_a, random_a)
+```
+
+```{r}
+phtest(fixed_b, random_b)
+```
+
+### Test BP-test
+
+```{r}
+lmtest::bptest(ln_CO2 ~ ln_IU + ln_FDI + ln_LS + factor(Country), 
+               studentize = F, data = dataset4)
+```
+
+```{r}
+lmtest::bptest(ln_CO2 ~ ln_MIS + ln_FDI + ln_LS + factor(Country), 
+               studentize = F, data = dataset4)
+```
+
+# Assumption test
+
+## Serial autocorrelation test
+
+```{r}
+pbgtest(fe_time_a)
+```
+
+```{r}
+pbgtest(fe_time_a)
+```
+
+## Clustered Robust
+
+```{r}
+fe_model_felma <- lfe::felm(ln_CO2 ~ ln_IU + ln_FDI + ln_LS  | Country | 0 | Country, data = dataset4)
+
+summary(fe_model_felma)
+```
+
+```{r}
+fe_model_felmb <- lfe::felm(ln_CO2 ~ ln_MIS + ln_FDI + ln_LS  | Country | 0 | Country, data = dataset4)
+
+summary(fe_model_felmb)
+```
+
+```{r}
+# Cluster robust standard error
+summary(fe_time_a, 
+         vcov = vcovHC(fe_time_a,
+                       type = "sss",
+                      cluster = "group"))
+```
+
+```{r}
+# Cluster robust standard error
+summary(fe_time_b, 
+         vcov = vcovHC(fe_time_b,
+                       type = "sss",
+                      cluster = "group"))
+```
+
+## Unit root test
+
+```{r}
+pdata<-pdata.frame(dataset,index=c("Country","Year"))
+
+```
+
+```{r}
+#define data as panel data
+panel <- pdata.frame(dataset4,index("Country","Year"))
+
+head(panel)
+```
+
+```{r}
+CO2<-purtest(ln_FDI~trend,data=pdata,lags="AIC",pmax=2,test="ips")
+summary(CO2)
+print(CO2)
+```
+
+```{r}
+LS_f<-purtest(ln_FDI~trend,data=pdata,lags="AIC",pmax=2,test="madwu")
+summary(LS_f)
+print(LS_f)
+```
+
+```{r}
+FDI<-purtest(ln_FDI~trend,data=pdata,lags="AIC",pmax=2,test="Pm")
+summary(FDI)
+print(FDI)
+```
+
+# 
